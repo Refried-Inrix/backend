@@ -15,11 +15,12 @@
           inputsFrom = [ ];
 
           packages = with pkgs; [ 
-            python3
-            python312Packages.flask
-            python312Packages.mysql-connector
-            valgrind
-            strace
+            (pkgs.python3.withPackages (python-pkgs: with python-pkgs; [
+              # pandas requests
+              flask
+              boto3
+              psycopg2
+            ]))
           ];
         };
 
