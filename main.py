@@ -103,30 +103,35 @@ def connect():
             sslmode="require"
         )
 
-        with conn.cursor() as cursor:
-            print("Successfully connected to the database.")
+        cursor = conn.cursor()
+        print("Successfully connected to the database.")
 
-            # cursor.execute("""
-            #     DROP DATABASE TRANSCRIPT;
-            # """)
+        # cursor.execute("""
+        #     DROP DATABASE TRANSCRIPT;
+        # """)
+        # conn.commit()
 
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS TRANSCRIPT (
-                  INDEX SERIAL,
-                  DATE VARCHAR(63),
-                  MESSAGE VARCHAR(2047),
-                  AUTHOR VARCHAR(63),
-                  LOCATIONX REAL,
-                  LOCATIONY REAL
-                );
-            """)
+        # IF NOT EXISTS 
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS TRANSCRIPT (
+              INDEX SERIAL,
+              DATE VARCHAR(63),
+              MESSAGE VARCHAR(2047),
+              AUTHOR VARCHAR(63),
+              LOCATIONX REAL,
+              LOCATIONY REAL
+            );
+        """)
+        conn.commit()
 
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS PARSED (
-                  PRIORITY VARCHAR(31),
-                  SUMMARY VARCHAR(255)
-                );
-            """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS PARSED (
+              PRIORITY VARCHAR(31),
+              SUMMARY VARCHAR(255)
+            );
+        """)
+        conn.commit()
+        cursor.close()
 
         return conn
 
@@ -162,10 +167,9 @@ def index():
 
 def __get_transcript():
     try:
-        transcript = []
-        with conn.cursor() as cursor:
-            cursor.execute('SELECT * FROM TRANSCRIPT')
-            transcript = cursor.fetchall()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM TRANSCRIPT;')
+        transcript = cursor.fetchall()
 
         return transcript
 
@@ -186,7 +190,9 @@ def __get_transcript():
 # Read endpoint get all transcripts
 @app.route('/api/v1/transcript', methods=['GET'])
 def get_transcript():
-    return jsonify(__get_transcript())
+    trans = __get_transcript()
+    print(trans)
+    return jsonify(trans)
 
 
 # Write endpoint to add new transcript
@@ -200,24 +206,26 @@ def add_transcipt():
         msg = data['message']
         author = data['author']
 
-        locations = data['location']
+        locations = data['location'] 
 
-        with conn.cursor() as cursor:
-            if not locations:
-                cursor.execute('INSERT INTO TRANSCRIPT (DATE, MESSAGE, AUTHOR, LOCATIONX, LOCATIONY) VALUES (%s, %s, %s, %d, %d)', (date, msg, author, x, y))
-            else: 
-                x = locations['lat']
-                y = locations['lon']
-                cursor.execute('INSERT INTO TRANSCRIPT (DATE, MESSAGE, AUTHOR) VALUES (%s, %s, %s)', (date, msg, author))
+        cursor = conn.cursor()
 
-        # conn.commit()
+        if not locations:
+            cursor.execute('INSERT INTO TRANSCRIPT (DATE, MESSAGE, AUTHOR, LOCATIONX, LOCATIONY) VALUES (%s, %s, %s, %d, %d);', (date, msg, author, x, y))
+        else:
+            x = locations['lat']
+            y = locations['lon']
+            cursor.execute('INSERT INTO TRANSCRIPT (DATE, MESSAGE, AUTHOR) VALUES (%s, %s, %s);', (date, msg, author))
+
+        conn.commit()
+        cursor.close()
 
         return jsonify({'message': 'success'})
     except Exception as e:
         return jsonify({'error': str(e)})
 
 @app.route('/api/v1/summary', methods=['GET'])
-def get_summary(index):
+def get_summary(): # index
     client = boto3.client(
             'bedrock-runtime',
             region_name=REGION,
@@ -280,14 +288,13 @@ def get_summary(index):
 
     #timestamp = datetime.now()
     #data = f"\nTimestamp: {timestamp}, Location: {Location}\n{summary_lines}\n\n"
+
     try:
-        # conn = connect()
-        with conn.cursor() as cursor:
-            cursor.execute('INSERT INTO PARSED (SUMMARY, PRIORITY) VALUES (%s , %s)', (summary_lines, rating)) # SQL Insert Command to db
+        cursor = conn.cursor()
+        cursor.execute('INSERT INTO PARSED (SUMMARY, PRIORITY) VALUES (%s , %s)', (summary_lines, rating))
+        conn.commit()
 
-        #conn.commit()
         print('message: success')
-
         print(summary_lines)
         return jsonify({'ok': summary_lines})
     except Exception as e:
@@ -300,3 +307,4 @@ if __name__ == '__main__':
     # init()
     # atexit.register(deinit) # this triggers on reload of flask
     app.run(host="0.0.0.0", port=5000) # debug=True)
+
