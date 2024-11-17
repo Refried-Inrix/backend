@@ -10,27 +10,20 @@ import requests
 from botocore.exceptions import ClientError
 from datetime import datetime
 
-if True:
-    import memory as db
-else:
-    import database as db
-
 from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
 # Constants
-PORT = 5432
+# PORT = 5432
 REGION = "us-west-2"
 SECRETNAME = "DBAccess"
-ENDPOINT='database-1.cluster-cr20c6qq8ktf.us-west-2.rds.amazonaws.com'
-USER='refriedpostgres'
-
-TABLENAME="TRANSCRIPT3"
+# ENDPOINT='database-1.cluster-cr20c6qq8ktf.us-west-2.rds.amazonaws.com'
+# USER='refriedpostgres'
 
 # PASSWORD=None
-# ACCESSID=None
-# ACCESSKEY=None
+ACCESSID=None
+ACCESSKEY=None
 
 # Function to get the secret from AWS Secrets Manager
 def get_secret():
@@ -64,6 +57,7 @@ else:
     print("Failed to retrieve the secret.")
     PASSWORD, USER, ENDPOINT, ACCESSID, ACCESSKEY = None, None, None, None, None
 
+
 """== Globals ============================================="""
 # threads = []
 # client = boto3.client('rds', region_name=REGION, aws_access_key_id=access_key_id, aws_secret_access_key=secret_access_key)
@@ -75,22 +69,28 @@ else:
 def index():
     return "<p>Use the /api endpoint</p>"
 
+messages = []
+def addMessage(data):
+    try:
+        print("message from: " + str(data["author"]))
+    except Exception as e:
+        print(f"error: {e}")
+
+    messages.append(data)
+
 # Read endpoint get all transcripts
 @app.route('/api/v1/transcript', methods=['GET'])
 def get_transcript():
-    msgs = db.getMessages()
-    print("got " + str(len(msgs)) + " items")
-    return jsonify(msgs)
-
+    print("got " + str(len(messages)) + " items")
+    return jsonify(messages)
 
 # Write endpoint to add new transcript
 @app.route('/api/v1/transcript', methods=['POST', 'OPTIONS'])
-def post_transcipt():
+def add_transcipt():
     try:
         data = request.get_json()
-
-        db.addMessage(data)
-
+        # print("input data: " + str(data))
+        addMessage(data)
         return jsonify({'message': 'success'})
     except Exception as e:
         return jsonify({'error': str(e)})
@@ -108,7 +108,7 @@ def get_summary(): # index
     context = "EMTs are responding to a scene and need an accurate summary that highlights any medical needs"
 
     transcription = []
-    transcript = db.getMessages()
+    transcript = messages
     print("afaenf: " + str(transcript))
 
 
