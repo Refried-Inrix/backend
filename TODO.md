@@ -1,18 +1,21 @@
 # TODO
 ## Backend
-- [ ] Calculate priority of message based on content
-- [ ] Connect to Database!
-    - [X] Running EC2
-    - [X] Working Public API
+- [ ] ~Calculate priority of message based on content~
+    - [ ] Filtering in new information
+- [ ] Batching AI prompts
+- [ ] Working API
+
 
 ## Frontend
 - [ ] Get TTS on the client working 
-    - [ ] Commit changes to `Adding Lines` endpoint
+- [ ] Commit changes to `Adding Lines` endpoint
 
 # DONE
 ## Backend
 - [X] Set Up SQL Databases 'database-1.cluster-cr20c6qq8ktf.us-west-2.rds.amazonaws.com'
 - [X] Prompting
+- [X] Connect to Database!
+- [X] Working Database
 
 ## Frontend
 

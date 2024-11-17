@@ -25,6 +25,7 @@ token = client.generate_db_auth_token(DBHostname=ENDPOINT, Port=PORT, DBUsername
 # def worker(num):
 #     """thread worker function"""
 #     print(f'Worker: {num}')
+#
 # def init():
 #     """init the global state"""
 #     t = threading.Thread(target=worker, args=(1,))
@@ -37,32 +38,34 @@ token = client.generate_db_auth_token(DBHostname=ENDPOINT, Port=PORT, DBUsername
 #         t.join()
 
 def connect():
+    dir_path = os.path.dirname(os.path.realpath(__file__))
     return psycopg2.connect(
-        host=ENDPOINT, port=PORT, database=DBNAME, user=USER, password=token, 
-        # sslrootcert="/home/focus/dev/refried/us-west-2-bundle.pem"
+            host=ENDPOINT,
+            port=PORT,
+            database="postgres", # DBNAME,
+            user=USER,
+            password='TODO', # token
+            sslrootcert=(dir_path + "secrets/us-west-2-bundle.pem"),
+            sslmode="require"
         )
 
 @app.route("/")
 def index():
     try:
-        print("1")
         # hangs forever
         conn = connect()
-        print("2")
 
-        # with connection.cursor() as cursor:
-        #     cursor.execute('SELECT %s + %s AS sum', (3, 2))
-        #     result = cursor.fetchone()
+        with conn.cursor() as cursor:
+            # cursor.execute('SELECT %s + %s AS sum', (3, 2))
+            # result = cursor.fetchone()
+            cursor.execute("""SELECT now()""")
+            result = cursor.fetchall()
+            print(result)
 
-        cur = conn.cursor()
-        cur.execute("""SELECT now()""")
-        query_results = cur.fetchall()
-        print("3")
-        print(query_results)
+        return jsonify(result)
     except Exception as e:
-        # print("Database connection failed due to {}".format(e))          
+        print("Database connection failed due to {}".format(e))          
         return jsonify({'error': str(e)}) # Return an error message if an exception occurs 
-
 
 # return "<p>Use the /api endpoint</p>"
 
