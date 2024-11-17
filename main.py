@@ -17,7 +17,7 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
-import search
+# import search
 
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
@@ -205,6 +205,50 @@ def get_summary(): # index
     except Exception as e:
         print('error: '+ str(e))
         return jsonify({'error': str(e)})
+
+@app.route('/search', methods=['GET'])
+def search():
+    query = request.args.get('query', default = "intrest", type=str)
+
+    client = boto3.client(
+            'bedrock-runtime',
+            region_name=REGION,
+            aws_access_key_id=ACCESSID,
+            aws_secret_access_key=ACCESSKEY
+            )
+
+    prompt = {query}
+    context = "Find any relevant information from the data from the prompt "
+
+    data = db.getMessages()
+
+    req= [
+        {
+            "role": "user",
+            "content": [{"text": f"Instruction: {prompt}\n\nContext: {context}\n\nData:\n{data}"}],
+        }
+    ]
+    try:
+        response = client.converse(
+            modelId="anthropic.claude-3-haiku-20240307-v1:0",
+            messages=req,
+            inferenceConfig={"maxTokens":4096,"stopSequences":["User:"],"temperature":0,"topP":1},
+            additionalModelRequestFields={}
+        )
+
+        response_text = response["output"]["message"]["content"][0]["text"]
+        print(response_text)
+
+    except (ClientError, Exception) as e:
+        print(f"ERROR: Can't invoke model. Reason: {e}")
+        return jsonify({'error': "invalid permissions"})
+
+    results = {
+        'query': query,
+        'results': [ response_text ]
+    }
+
+    return jsonify(results)
 
 # from OpenSSL import SSL
 # context = SSL.Context(SSL.PROTOCOL_TLSv1_2)
