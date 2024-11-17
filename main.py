@@ -77,15 +77,15 @@ def index():
     return "<p>Use the /api endpoint</p>"
 
 # Read endpoint get all transcripts
-@app.route('/api/v1/transcript', methods=['GET'])
+@app.route('/api/v1/msgs', methods=['GET'])
 def get_transcript():
     msgs = db.getMessages()
     print("got " + str(len(msgs)) + " items")
     return jsonify(msgs)
 
 
-# Write endpoint to add new transcript
-@app.route('/api/v1/transcript', methods=['POST', 'OPTIONS'])
+# Write endpoint to add new msgs
+@app.route('/api/v1/msgs', methods=['POST', 'OPTIONS'])
 def post_transcipt():
     try:
         data = request.get_json()
@@ -107,18 +107,9 @@ def post_transcipt():
         return jsonify({'error': str(e)})
 
 
-# summary = ""
-# summarycachelen = -1
-
 @app.route('/api/v1/summary', methods=['GET'])
 def get_summary(): # index
-    # global summary
-    # if (len(summary) != 0):
-    #     return jsonify({'ok': summary})
-
-    targetAuthor = request.args.get('author', default = "", type=str)
-    if (targetAuthor == ""):
-        return jsonify({'error': "invalid parameter"})
+    targetAuthor = request.args.get('author', default = "all", type=str)
 
     client = boto3.client(
             'bedrock-runtime',
@@ -131,16 +122,18 @@ def get_summary(): # index
     context = "EMTs are responding to a scene and need an accurate summary that highlights any medical needs"
 
     transcription = []
-    transcript = db.getMessages()
+    msgs = db.getMessages()
+    outputTime = ""
 
-    for i in transcript:
-        if i["author"] == targetAuthor:
+    for i in msgs:
+        if targetAuthor == "all" or i["author"] == targetAuthor:
+            outputTime = i["date"]
             transcription.append(i["message"])
 
-    # print("transcription: " + str(transcription))
-    # transcription.append(transcript[index][1])
+    if (len(transcription) == 0):
+        return jsonify({'summaries': ["nothing has happend yet"], "author": targetAuthor})
 
-    conversation = [ {
+    conversation = [{
         "role": "user",
         "content": [{"text": f"Instruction: {prompt}\n\nContext: {context}\n\nInput:\n{transcription}"}],
     }]
@@ -177,11 +170,8 @@ def get_summary(): # index
                 break
             summary_lines.append(line.strip())
 
-    summary_lines = "\n".join(summary_lines)
-
-
-    #timestamp = datetime.now()
-    #data = f"\nTimestamp: {timestamp}, Location: {Location}\n{summary_lines}\n\n"
+    # timestamp = datetime.now()
+    # data = f"\nTimestamp: {timestamp}, Location: {Location}\n{summary_lines}\n\n"
 
     try:
         # cursor = conn.cursor()
@@ -189,13 +179,15 @@ def get_summary(): # index
         # conn.commit()
 
         print('message summary: success')
-        # print(summary_lines)
-        summary = summary_lines
-        return jsonify({'ok': {
-            'summary': summary_lines,
-            'time': "time",
-            'author': 'name'
-        }})
+
+        sum = {
+            'summaries': summary_lines,
+            'time': outputTime,
+            'author': targetAuthor
+        }
+        print(sum)
+        return jsonify(sum)
+
     except Exception as e:
         print('error: '+ str(e))
         return jsonify({'error': str(e)})

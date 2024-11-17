@@ -11,7 +11,7 @@ def init():
 
     file = open(FILE)
     messages = json.load(file)
-    # print("init msgs: " + str(messages))
+    print("init msgs with " + str(len(messages)))
     file.close()
 
 def addMessage(data):
