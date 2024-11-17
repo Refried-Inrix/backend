@@ -15,32 +15,30 @@ ENDPOINT='database-1.cluster-cr20c6qq8ktf.us-west-2.rds.amazonaws.com'
 PORT=5432
 USER='refriedpostgres'
 REGION='us-west-2'
-DBNAME='database-1'
 
 def connect():
     dir_path = os.path.dirname(os.path.realpath(__file__))
     ssl = dir_path + "/etc/us-west-2-bundle.pem"
-    print(ssl)
     conn = psycopg2.connect(
             host=ENDPOINT,
             port=PORT,
-            database="postgres", # DBNAME,
+            database="postgres",
             user=USER,
             password='TODO',
             sslrootcert=ssl,
             sslmode="require"
         )
 
-    cursor = conn.cursor() #dictionary=True
+    cursor = conn.cursor()
 
-    cursor.execute("""
-      CREATE TABLE TRANSCRIPT (
-        DATE VARCHAR(255),
-        MESSAGE VARCHAR(255),
-      );
-    """)
-        # year INT
+    # cursor.execute("""
+    #   CREATE TABLE TRANSCRIPT (
+    #     DATE VARCHAR(255),
+    #     MESSAGE VARCHAR(255)
+    #   );
+    # """)
 
+    # year INT
 
     return conn
 
@@ -50,7 +48,6 @@ conn = connect()
 # client = boto3.client('rds', region_name=REGION, aws_access_key_id=access_key_id, aws_secret_access_key=secret_access_key)
 # token = client.generate_db_auth_token(DBHostname=ENDPOINT, Port=PORT, DBUsername=USER, Region=REGION)
 """========================================================"""
-
 
 # def worker(num):
 #     """thread worker function"""
@@ -71,21 +68,16 @@ conn = connect()
 def index():
     return "<p>Use the /api endpoint</p>"
 
-
 # Read endpoint get all transcripts
 @app.route('/api/v1/transcript', methods=['GET'])
 def get_transcript():
     try:
         cursor = conn.cursor()
-
         cursor.execute('SELECT * FROM TRANSCRIPT')
         transcript = cursor.fetchall()
-
         return jsonify(transcript)
     except Exception as e:
         return jsonify({'error': str(e)})
-    # finally:
-        # cursor.close()
 
 # Write endpoint to add new transcript
 @app.route('/api/v1/transcript', methods=['POST'])
@@ -104,12 +96,9 @@ def add_transcipt():
         return jsonify({'message': 'success'})
     except Exception as e:
         return jsonify({'error': str(e)})
-    # finally:
-        # cursor.close()
 
 if __name__ == '__main__':
     # init()
     # atexit.register(deinit) # this triggers on reload of flask
-    app.run(host="0.0.0.0", port=5000, debug=True)
-
+    app.run(host="0.0.0.0", port=5000) # debug=True)
 

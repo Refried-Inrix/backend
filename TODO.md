@@ -13,10 +13,8 @@
 - [X] Give project a cool name
 
 ## Backend
-- [X] Set Up SQL Databases 'database-1.cluster-cr20c6qq8ktf.us-west-2.rds.amazonaws.com'
+- [X] Working Databases 'database-1.cluster-cr20c6qq8ktf.us-west-2.rds.amazonaws.com'
 - [X] Prompting
-- [X] Connect to Database!
-- [X] Working Database
 
 ## Frontend
 
