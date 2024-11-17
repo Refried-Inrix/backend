@@ -119,6 +119,10 @@ def get_summary(): # index
     # if (len(summary) != 0):
     #     return jsonify({'ok': summary})
 
+    targetAuthor = request.args.get('author', default = "", type=str)
+    if (targetAuthor == ""):
+        return jsonify({'error': "invalid parameter"})
+
     client = boto3.client(
             'bedrock-runtime',
             region_name=REGION,
@@ -133,7 +137,8 @@ def get_summary(): # index
     transcript = db.getMessages()
 
     for i in transcript:
-        transcription.append(i["message"])
+        if i["author"] == targetAuthor:
+            transcription.append(i["message"])
 
     print("transcription: " + str(transcription))
     # transcription.append(transcript[index][1])
