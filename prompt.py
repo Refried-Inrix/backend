@@ -12,8 +12,8 @@ from datetime import datetime
 client = boto3.client(
         'bedrock-runtime',
         region_name='us-west-2',
-        aws_access_key_id="AKIAXDLIJXV3AI25IXPZ",
-        aws_secret_access_key="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"
+        aws_access_key_id="",
+        aws_secret_access_key=""
         )
 
 prompt = "Make a short bullet point summary of the conversation with personal data removed and then rate the scenario as either common or extreme"

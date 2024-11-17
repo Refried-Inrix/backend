@@ -34,7 +34,16 @@ POST: http://ec2-44-236-44-204.us-west-2.compute.amazonaws.com:5000/api/v1/trans
 
 # Database
 ## Transcript Table
-| INDEX | DATE | MESSAGE | AUTHOR | LOCATIONX | LOCATIONY | PRIORITY |
+| INDEX  | DATE        | MESSAGE       | AUTHOR      | LOCATIONX        | LOCATIONY         | 
+| ------ | ----------- | ------------- | ----------- | ---------------- | ----------------- | 
+| SERIAL | VARCHAR(63) | VARCHAR(2047) | VARCHAR(63) | DOUBLE PERCISION | DOUBLE PERCISION  | 
+| All    | All         | All           | All         | Optional         | Optional          | 
+
+## Parsed Table
+| PRIORITY    | SUMMARY      |
+| ----------- | ------------ |
+| VARCHAR(31) | VARCHAR(255) |
+| if PARSED   | if PARSED    |
 
 # Lore
 ## Name Vote
