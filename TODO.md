@@ -32,6 +32,15 @@ POST: http://ec2-44-236-44-204.us-west-2.compute.amazonaws.com:5000/api/v1/trans
 }
 ```
 
+```json
+POST: http://ec2-44-236-44-204.us-west-2.compute.amazonaws.com:5000/api/v1/summary
+{
+    "summaries": [STRING],
+    "time": STGRIN,
+    "author": STGRIN
+}
+```
+
 # Database
 ## Transcript Table
 | INDEX  | DATE        | MESSAGE       | AUTHOR      | LOCATIONX        | LOCATIONY         | 

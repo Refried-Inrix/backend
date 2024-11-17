@@ -9,10 +9,9 @@ FILE="./thing.db"
 def init():
     global messages
 
-    print("running init")
     file = open(FILE)
     messages = json.load(file)
-    print("init msgs: " + str(messages))
+    # print("init msgs: " + str(messages))
     file.close()
 
 def addMessage(data):
@@ -24,9 +23,7 @@ def getMessages():
 def cache():
     global messages
 
-    print("running a cache")
-    msg = str(messages)
-    print("thign: " + msg)
+    msg = json.dumps(messages)
     file = open(FILE, "w")
     file.write(msg)
     file.close()

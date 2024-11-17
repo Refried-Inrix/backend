@@ -1,14 +1,11 @@
 from flask import Flask, request, jsonify, Response
 import time
 import boto3
-import threading
-import os
-import psycopg2
 import json
-# import atexit
 import requests
 from botocore.exceptions import ClientError
 from datetime import datetime
+import logging
 
 if True:
     import memory as db
@@ -19,7 +16,6 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
-import logging
 
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
@@ -101,6 +97,7 @@ def post_transcipt():
 
         db.addMessage(data)
 
+        print("caching messages")
         msgs = db.getMessages()
         if (len(msgs) % 10 == 0):
             db.cache()
@@ -140,7 +137,7 @@ def get_summary(): # index
         if i["author"] == targetAuthor:
             transcription.append(i["message"])
 
-    print("transcription: " + str(transcription))
+    # print("transcription: " + str(transcription))
     # transcription.append(transcript[index][1])
 
     conversation = [ {
@@ -191,33 +188,17 @@ def get_summary(): # index
         # cursor.execute('INSERT INTO PARSED (SUMMARY, PRIORITY) VALUES (%s , %s)', (summary_lines, rating))
         # conn.commit()
 
-        print('message: success')
-        print(summary_lines)
+        print('message summary: success')
+        # print(summary_lines)
         summary = summary_lines
         return jsonify({'ok': {
             'summary': summary_lines,
-            'time': 0,
+            'time': "time",
             'author': 'name'
         }})
     except Exception as e:
         print('error: '+ str(e))
         return jsonify({'error': str(e)})
-
-    # cursor.close()
-
-
-# TABLENAME="refried-thing-important-dont-forget"
-# dynamo = boto3.client('dynamodb', region_name=REGION)
-# dynamo.put_item(
-#     TableName=TABLENAME,
-#     Item={
-#         'pk': {'S': 'id#1'},
-#         'sk': {'S': 'cart#123'},
-#         'name': {'S': 'SomeName'},
-#         'inventory': {'N': '500'},
-#         # ... more attributes ...
-#     }
-# )
 
 # from OpenSSL import SSL
 # context = SSL.Context(SSL.PROTOCOL_TLSv1_2)
@@ -226,7 +207,5 @@ def get_summary(): # index
 
 if __name__ == '__main__':
     db.init()
-    # init()
-    # atexit.register(deinit) # this triggers on reload of flask
-    app.run(host="0.0.0.0", port=5000) # , ssl_context=context) # debug=True)
+    app.run(host="0.0.0.0", port=5000)
 
