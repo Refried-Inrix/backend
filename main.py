@@ -4,43 +4,84 @@ import boto3
 import threading
 import os
 import psycopg2
-
-# import json
+import json
 # import atexit
 
 app = Flask(__name__)
 
-# READONLY: 'database-1.cluster-ro-cr20c6qq8ktf.us-west-2.rds.amazonaws.com' 
-ENDPOINT='database-1.cluster-cr20c6qq8ktf.us-west-2.rds.amazonaws.com'
-PORT=5432
-USER='refriedpostgres'
-REGION='us-west-2'
+# Constants
+PORT = 5432
+REGION = "us-west-2"
+SECRET_NAME = "DBAccess"
 
+# Function to get the secret from AWS Secrets Manager
+def get_secret():
+    client = boto3.client("secretsmanager", region_name=REGION)
+
+    try:
+        # Fetch the secret value
+        response = client.get_secret_value(SecretId=SECRET_NAME)
+        # Parse the secret as JSON
+        secret = json.loads(response["SecretString"])
+        return secret
+    except Exception as e:
+        print(f"Error retrieving secret {SECRET_NAME}: {e}")
+        return None
+
+# Fetch the secret
+user_secret = get_secret()
+
+if user_secret:
+    # Extract the secrets
+    try:
+        PASSWORD = user_secret["SecrPassword"] 
+        USER = user_secret["SecrUser"]        
+        ENDPOINT = user_secret["SecrEndpoint"] 
+        print("Successfully retrieved secrets from Secrets Manager.")
+    except KeyError as e:
+        print(f"Missing key in secret: {e}. Ensure the secret contains all required keys.")
+        PASSWORD, USER, ENDPOINT = None, None, None
+else:
+    print("Failed to retrieve the secret.")
+    PASSWORD, USER, ENDPOINT = None, None, None
+
+# Database connection function
 def connect():
+    """Connect to the PostgreSQL database."""
+    if not PASSWORD or not USER or not ENDPOINT:
+        print("Missing database credentials. Cannot connect.")
+        return None
+
+    # SSL Certificate path
     dir_path = os.path.dirname(os.path.realpath(__file__))
     ssl = dir_path + "/etc/us-west-2-bundle.pem"
-    conn = psycopg2.connect(
+
+    try:
+        # Establish the connection
+        conn = psycopg2.connect(
             host=ENDPOINT,
             port=PORT,
             database="postgres",
             user=USER,
-            password='TODO',
+            password=PASSWORD,
             sslrootcert=ssl,
             sslmode="require"
         )
 
-    cursor = conn.cursor()
+        cursor = conn.cursor() #dictionary=True\    
+        print("Successfully connected to the database.")
 
-    # cursor.execute("""
-    #   CREATE TABLE TRANSCRIPT (
-    #     DATE VARCHAR(255),
-    #     MESSAGE VARCHAR(255)
-    #   );
-    # """)
-
-    # year INT
-
-    return conn
+        #  cursor.execute("""
+        #      CREATE TABLE TRANSCRIPT (
+        #        DATE VARCHAR(255),
+        #        MESSAGE VARCHAR(255)
+        #      );
+        # """)
+        
+        return conn
+    except psycopg2.Error as e:
+        print(f"Error connecting to the database: {e}")
+        return None
 
 """== Globals ============================================="""
 conn = connect()
