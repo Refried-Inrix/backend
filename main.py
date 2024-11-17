@@ -16,7 +16,8 @@ SECRET_NAME = "DBAccess"
 
 # Function to get the secret from AWS Secrets Manager
 def get_secret():
-    client = boto3.client("secretsmanager", region_name=REGION)
+    session = boto3.session.Session()
+    client = session.client("secretsmanager", region_name=REGION)
 
     try:
         # Fetch the secret value
