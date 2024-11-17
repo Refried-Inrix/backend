@@ -1,4 +1,4 @@
-# Prompts Claude for a summary of transcription
+# Prompts Claude with user search query
 
 import boto3
 from botocore.exceptions import ClientError
