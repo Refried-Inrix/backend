@@ -17,28 +17,59 @@ CORS(app)
 # Constants
 PORT = 5432
 REGION = "us-west-2"
-SECRET_NAME = "DBAccess"
+SECRETNAME = "DBAccess"
+ENDPOINT='database-1.cluster-cr20c6qq8ktf.us-west-2.rds.amazonaws.com'
+USER='refriedpostgres'
+
+# PASSWORD=None
+# ACCESSID=None
+# ACCESSKEY=None
+
+# # Function to get the secret from AWS Secrets Manager and fetch the secret
+# def getsecret():
+#     secrets = boto3.client("secretsmanager", region_name=REGION)
+#
+#     try:
+#         # Fetch the secret value
+#         response = secrets.get_secret_value(SecretId=SECRETNAME)
+#         # Parse the secret as JSON
+#         secret = json.loads(response["SecretString"])
+#
+#         # print("Successfully retrieved secrets from Secrets Manager.")
+#
+#         PASSWORD=secret["SecrPassword"]
+#         ACCESSID=secret["SecrAccessID"]
+#         ACCESSKEY=secret["SecrKey"]
+#
+#     except Exception as e:
+#         # except KeyError as e:
+#         #     print(f"Missing key in secret: {e}. Ensure the secret contains all required keys.")
+#         print(f"Error retrieving secret {SECRETNAME}: {e}")
+#
+# getsecret()
+
 # Function to get the secret from AWS Secrets Manager
 def get_secret():
     client = boto3.client("secretsmanager", region_name=REGION)
 
     try:
         # Fetch the secret value
-        response = client.get_secret_value(SecretId=SECRET_NAME)
+        response = client.get_secret_value(SecretId=SECRETNAME)
         # Parse the secret as JSON
         secret = json.loads(response["SecretString"])
         return secret
     except Exception as e:
-        print(f"Error retrieving secret {SECRET_NAME}: {e}")
+        print(f"Error retrieving secret {SECRETNAME}: {e}")
         return None
+
 # Fetch the secret
 user_secret = get_secret()
 if user_secret:
     # Extract the secrets
     try:
         PASSWORD = user_secret["SecrPassword"] 
-        USER = user_secret["SecrUser"]        
-        ENDPOINT = user_secret["SecrEndpoint"] 
+        # USER = user_secret["SecrUser"]
+        # ENDPOINT = user_secret["SecrEndpoint"] 
         ACCESSID = user_secret["SecrAccessID"] 
         ACCESSKEY = user_secret["SecrKey"] 
         print("Successfully retrieved secrets from Secrets Manager.")
@@ -48,12 +79,15 @@ if user_secret:
 else:
     print("Failed to retrieve the secret.")
     PASSWORD, USER, ENDPOINT, ACCESSID, ACCESSKEY = None, None, None, None, None
+
+
 # Database connection function
 def connect():
     """Connect to the PostgreSQL database."""
-    if not PASSWORD or not USER or not ENDPOINT or not ACCESSID or not ACCESSKEY:
+    if not PASSWORD or not ACCESSID or not ACCESSKEY:
         print("Missing database credentials. Cannot connect.")
         return None
+
     # SSL Certificate path
     dir_path = os.path.dirname(os.path.realpath(__file__))
     ssl = dir_path + "/etc/us-west-2-bundle.pem"
@@ -72,9 +106,9 @@ def connect():
         with conn.cursor() as cursor:
             print("Successfully connected to the database.")
 
-            cursor.execute("""
-                DROP DATABASE TRANSCRIPT;
-            """)
+            # cursor.execute("""
+            #     DROP DATABASE TRANSCRIPT;
+            # """)
 
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS TRANSCRIPT (
@@ -93,9 +127,9 @@ def connect():
                   SUMMARY VARCHAR(255)
                 );
             """)
-        
+
         return conn
-        
+
     except psycopg2.Error as e:
         print(f"Error connecting to the database: {e}")
         return None
@@ -128,6 +162,7 @@ def index():
 
 def __get_transcript():
     try:
+        transcript = []
         with conn.cursor() as cursor:
             cursor.execute('SELECT * FROM TRANSCRIPT')
             transcript = cursor.fetchall()
@@ -185,9 +220,9 @@ def add_transcipt():
 def get_summary(index):
     client = boto3.client(
             'bedrock-runtime',
-            region_name='us-west-2',
-            aws_access_key_id = ACCESSID,
-            aws_secret_access_key = ACCESSKEY
+            region_name=REGION,
+            aws_access_key_id=ACCESSID,
+            aws_secret_access_key=ACCESSKEY
         )
 
     prompt = "Make a short bullet point summary of the conversation with personal data removed and then rate the scenario as either common or extreme"
@@ -195,15 +230,18 @@ def get_summary(index):
 
     transcription = []
     transcript = __get_transcript()
-    print("afaenf" + str(transcript))
-    transcription.append(transcript[index][1])
+    print("afaenf: " + str(transcript))
 
-    conversation = [
-        {
-            "role": "user",
-            "content": [{"text": f"Instruction: {prompt}\n\nContext: {context}\n\nInput:\n{transcription}"}],
-        }
-    ]
+
+    for i in transcript:
+        transcription.append(i[1])
+
+    # transcription.append(transcript[index][1])
+
+    conversation = [ {
+        "role": "user",
+        "content": [{"text": f"Instruction: {prompt}\n\nContext: {context}\n\nInput:\n{transcription}"}],
+    }]
 
     try:
         response = client.converse(
@@ -239,21 +277,22 @@ def get_summary(index):
 
     summary_lines = "\n".join(summary_lines)
 
-    print("1")
 
     #timestamp = datetime.now()
     #data = f"\nTimestamp: {timestamp}, Location: {Location}\n{summary_lines}\n\n"
     try:
-        conn = connect()
-        print("2")
+        # conn = connect()
         with conn.cursor() as cursor:
             cursor.execute('INSERT INTO PARSED (SUMMARY, PRIORITY) VALUES (%s , %s)', (summary_lines, rating)) # SQL Insert Command to db
-        print("3")
 
         #conn.commit()
         print('message: success')
+
+        print(summary_lines)
+        return jsonify({'ok': summary_lines})
     except Exception as e:
-        print('error: '+str(e))
+        print('error: '+ str(e))
+        return jsonify({'error': str(e)})
 
     # cursor.close()
 
