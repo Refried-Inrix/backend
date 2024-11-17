@@ -191,7 +191,7 @@ def get_summary(index):
         )
 
     prompt = "Make a short bullet point summary of the conversation with personal data removed and then rate the scenario as either common or extreme"
-    context = "EMTs are responding to a scene and need a professional summary that highlights medical needs"
+    context = "EMTs are responding to a scene and need an accurate summary that highlights any medical needs"
 
     transcription = []
     transcript = __get_transcript()
