@@ -182,7 +182,7 @@ def add_transcipt():
         return jsonify({'error': str(e)})
 
 @app.route('/api/v1/summary', methods=['GET'])
-def get_summary():
+def get_summary(index):
     client = boto3.client(
             'bedrock-runtime',
             region_name='us-west-2',
@@ -196,8 +196,7 @@ def get_summary():
     transcription = []
     transcript = __get_transcript()
     print("afaenf" + str(transcript))
-    for i in transcript:
-        transcription.append(i[1])
+    transcription.append(transcript[index][1])
 
     conversation = [
         {
