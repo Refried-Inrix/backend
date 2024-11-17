@@ -83,27 +83,8 @@ def connect():
         print(f"Error connecting to the database: {e}")
         return None
 
-"""== Globals ============================================="""
 conn = connect()
-# threads = []
-# client = boto3.client('rds', region_name=REGION, aws_access_key_id=access_key_id, aws_secret_access_key=secret_access_key)
-# token = client.generate_db_auth_token(DBHostname=ENDPOINT, Port=PORT, DBUsername=USER, Region=REGION)
-"""========================================================"""
 
-# def worker(num):
-#     """thread worker function"""
-#     print(f'Worker: {num}')
-#
-# def init():
-#     """init the global state"""
-#     t = threading.Thread(target=worker, args=(1,))
-#     t.start()
-#     threads.append(t);
-#
-# def deinit():
-#     print("atexit")
-#     for t in threads:
-#         t.join()
 
 @app.route("/")
 def index():
