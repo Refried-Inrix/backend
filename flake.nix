@@ -21,6 +21,7 @@
               boto3
               psycopg2
             ]))
+            # postgresql_16
           ];
         };
 
