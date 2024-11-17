@@ -12,10 +12,12 @@ if True:
 else:
     import database as db
 
+
 from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
+import search
 
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
@@ -77,7 +79,7 @@ def index():
     return "<p>Use the /api endpoint</p>"
 
 # Read endpoint get all transcripts
-@app.route('/api/v1/msgs', methods=['GET'])
+@app.route('/api/v1/transcript', methods=['GET'])
 def get_transcript():
     msgs = db.getMessages()
     print("got " + str(len(msgs)) + " items")
@@ -85,7 +87,7 @@ def get_transcript():
 
 
 # Write endpoint to add new msgs
-@app.route('/api/v1/msgs', methods=['POST', 'OPTIONS'])
+@app.route('/api/v1/transcript', methods=['POST', 'OPTIONS'])
 def post_transcipt():
     try:
         data = request.get_json()
@@ -107,8 +109,12 @@ def post_transcipt():
         return jsonify({'error': str(e)})
 
 
+cachedresults = {}
+
 @app.route('/api/v1/summary', methods=['GET'])
 def get_summary(): # index
+    global cachedresults
+
     targetAuthor = request.args.get('author', default = "all", type=str)
 
     client = boto3.client(
@@ -132,6 +138,13 @@ def get_summary(): # index
 
     if (len(transcription) == 0):
         return jsonify({'summaries': ["nothing has happend yet"], "author": targetAuthor})
+
+    transcription = "".join(transcription)
+
+    h = str(hash(transcription))
+    if (h in cachedresults):
+        print("using chached query")
+        return jsonify(cachedresults[h])
 
     conversation = [{
         "role": "user",
@@ -185,7 +198,8 @@ def get_summary(): # index
             'time': outputTime,
             'author': targetAuthor
         }
-        print(sum)
+        cachedresults[h] = sum
+        # print(sum)
         return jsonify(sum)
 
     except Exception as e:

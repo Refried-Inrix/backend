@@ -1,179 +1,74 @@
-from flask import Flask, request, jsonify, Response
-import time
-import boto3
-import threading
-import os
-import psycopg2
+from flask import jsonify
 import json
-# import atexit
-import requests
-from botocore.exceptions import ClientError
-from datetime import datetime
+import copy
+import boto3
 
-from flask_cors import CORS
-app = Flask(__name__)
-CORS(app)
-
-# Constants
-# PORT = 5432
 REGION = "us-west-2"
+ENDPOINT='database-1.cluster-cr20c6qq8ktf.us-west-2.rds.amazonaws.com'
+PORT = 5432
+USER='refriedpostgres'
+
 SECRETNAME = "DBAccess"
-# ENDPOINT='database-1.cluster-cr20c6qq8ktf.us-west-2.rds.amazonaws.com'
-# USER='refriedpostgres'
+PASSWORD = None
 
-# PASSWORD=None
-ACCESSID=None
-ACCESSKEY=None
+def __connect():
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    ssl = dir_path + "/etc/us-west-2-bundle.pem"
 
-# Function to get the secret from AWS Secrets Manager
-def get_secret():
-    client = boto3.client("secretsmanager", region_name=REGION)
+    conn = psycopg2.connect(
+            host=ENDPOINT,
+            port=PORT,
+            database="postgres",
+            user=USER,
+            password='TODO',
+            sslrootcert=ssl,
+            sslmode="require"
+        )
 
-    try:
-        # Fetch the secret value
-        response = client.get_secret_value(SecretId=SECRETNAME)
-        # Parse the secret as JSON
-        secret = json.loads(response["SecretString"])
-        return secret
-    except Exception as e:
-        print(f"Error retrieving secret {SECRETNAME}: {e}")
-        return None
-
-# Fetch the secret
-user_secret = get_secret()
-if user_secret:
-    # Extract the secrets
-    try:
-        # PASSWORD = user_secret["SecrPassword"] 
-        # USER = user_secret["SecrUser"]
-        # ENDPOINT = user_secret["SecrEndpoint"] 
-        ACCESSID = user_secret["SecrAccessID"] 
-        ACCESSKEY = user_secret["SecrKey"] 
-        print("Successfully retrieved secrets from Secrets Manager.")
-    except KeyError as e:
-        print(f"Missing key in secret: {e}. Ensure the secret contains all required keys.")
-        PASSWORD, USER, ENDPOINT, ACCESSID, ACCESSKEY = None, None, None, None, None
-else:
-    print("Failed to retrieve the secret.")
-    PASSWORD, USER, ENDPOINT, ACCESSID, ACCESSKEY = None, None, None, None, None
+    return conn
 
 
-"""== Globals ============================================="""
-# threads = []
-# client = boto3.client('rds', region_name=REGION, aws_access_key_id=access_key_id, aws_secret_access_key=secret_access_key)
-# token = client.generate_db_auth_token(DBHostname=ENDPOINT, Port=PORT, DBUsername=USER, Region=REGION)
-# conn = connect()
-"""========================================================"""
+def init():
+    global PASSWORD
 
-@app.route("/")
-def index():
-    return "<p>Use the /api endpoint</p>"
+    secrets = boto3.client("secretsmanager", region_name=REGION)
+    response = secrets.get_secret_value(SecretId=SECRETNAME)
+    secret = json.loads(response["SecretString"])
+    PASSWORD = secret["SecrPassword"]
 
-messages = []
+    conn = __connect()
+    cursor = conn.cursor()
+
+    # cursor.execute("""
+    #   CREATE TABLE IF NOT EXISTS TRANSCRIPT (
+    #     DATE VARCHAR(63),
+    #     MESSAGE VARCHAR(255)
+    #   );
+    # """)
+
+    noop
+
 def addMessage(data):
-    try:
-        print("message from: " + str(data["author"]))
-    except Exception as e:
-        print(f"error: {e}")
+    conn = __connect()
 
-    messages.append(data)
+    date = data['date']
+    msg = data['message']
+    # author = data['author']
 
-# Read endpoint get all transcripts
-@app.route('/api/v1/transcript', methods=['GET'])
-def get_transcript():
-    print("got " + str(len(messages)) + " items")
-    return jsonify(messages)
+    cursor = conn.cursor()
+    cursor.execute('INSERT INTO TRANSCRIPT (DATE, MESSAGE) VALUES (%s, %s)', (date, msg))
+    conn.commit()
 
-# Write endpoint to add new transcript
-@app.route('/api/v1/transcript', methods=['POST', 'OPTIONS'])
-def add_transcipt():
-    try:
-        data = request.get_json()
-        # print("input data: " + str(data))
-        addMessage(data)
-        return jsonify({'message': 'success'})
-    except Exception as e:
-        return jsonify({'error': str(e)})
+def getMessages():
+    conn = __connect()
 
-@app.route('/api/v1/summary', methods=['GET'])
-def get_summary(): # index
-    client = boto3.client(
-            'bedrock-runtime',
-            region_name=REGION,
-            aws_access_key_id=ACCESSID,
-            aws_secret_access_key=ACCESSKEY
-        )
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM TRANSCRIPT')
+    transcript = cursor.fetchall()
+    return transcript
 
-    prompt = "Make a short bullet point summary of the conversation with personal data removed and then rate the scenario as either common or extreme"
-    context = "EMTs are responding to a scene and need an accurate summary that highlights any medical needs"
-
-    transcription = []
-    transcript = messages
-    print("afaenf: " + str(transcript))
-
-
-    for i in transcript:
-        transcription.append(i["message"])
-
-    # transcription.append(transcript[index][1])
-
-    conversation = [ {
-        "role": "user",
-        "content": [{"text": f"Instruction: {prompt}\n\nContext: {context}\n\nInput:\n{transcription}"}],
-    }]
-
-    try:
-        response = client.converse(
-            modelId="anthropic.claude-3-haiku-20240307-v1:0",
-            messages=conversation,
-            inferenceConfig={"maxTokens":4096,"stopSequences":["User:"],"temperature":0,"topP":1},
-            additionalModelRequestFields={}
-        )
-
-        response_text = response["output"]["message"]["content"][0]["text"]
-
-    except (ClientError, Exception) as e:
-        print(f"ERROR: Can't invoke model. Reason: {e}")
-        return jsonify({'error': "invalid permissions"})
-
-    lines = response_text.splitlines()
-    summary_started = False
-    summary_lines = []
-    rating = []
-
-    for line in lines:
-        if "Rating:" in line:
-            rating.append(line.strip())
-            rating = rating[0].split(': ')[-1]
-    for line in lines:
-        if "Summary:" in line:
-            summary_started = True
-            continue
-        if summary_started:
-            if line.strip() == "":
-                break
-            summary_lines.append(line.strip())
-
-    summary_lines = "\n".join(summary_lines)
-
-
-    #timestamp = datetime.now()
-    #data = f"\nTimestamp: {timestamp}, Location: {Location}\n{summary_lines}\n\n"
-
-    try:
-        # cursor = conn.cursor()
-        # cursor.execute('INSERT INTO PARSED (SUMMARY, PRIORITY) VALUES (%s , %s)', (summary_lines, rating))
-        # conn.commit()
-
-        print('message: success')
-        print(summary_lines)
-        return jsonify({'ok': summary_lines})
-    except Exception as e:
-        print('error: '+ str(e))
-        return jsonify({'error': str(e)})
-
-    # cursor.close()
-
+def cache():
+    noop
 
 # TABLENAME="refried-thing-important-dont-forget"
 # dynamo = boto3.client('dynamodb', region_name=REGION)
@@ -187,14 +82,3 @@ def get_summary(): # index
 #         # ... more attributes ...
 #     }
 # )
-
-# from OpenSSL import SSL
-# context = SSL.Context(SSL.PROTOCOL_TLSv1_2)
-# context.use_privatekey_file('server.key')
-# context.use_certificate_file('server.crt')
-
-if __name__ == '__main__':
-    # init()
-    # atexit.register(deinit) # this triggers on reload of flask
-    app.run(host="0.0.0.0", port=5000) # , ssl_context=context) # debug=True)
-
