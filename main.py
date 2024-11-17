@@ -17,46 +17,46 @@ CORS(app)
 # Constants
 PORT = 5432
 REGION = "us-west-2"
+SECRET_NAME = "DBAccess"
+# Function to get the secret from AWS Secrets Manager
+def get_secret():
+    client = boto3.client("secretsmanager", region_name=REGION)
 
-ENDPOINT='database-1.cluster-cr20c6qq8ktf.us-west-2.rds.amazonaws.com'
-USER='refriedpostgres'
-
-PASSWORD = 'TODO'
-
-# # Function to get the secret from AWS Secrets Manager
-# def get_secret():
-#     client = boto3.client("secretsmanager", region_name=REGION)
-#
-#     SECRETNAME = "DBAccess"
-#     try:
-#         # Fetch the secret value
-#         response = client.get_secret_value(SecretId=SECRETNAME)
-#         print(response)
-#         # Parse the secret as JSON
-#         secret = json.loads(response["SecretString"])
-#         try:
-#             PASSWORD = secret["SecrPassword"] 
-#             print("Successfully retrieved secrets from Secrets Manager.")
-#         except KeyError as e:
-#             print(f"Missing key in secret: {e}. Ensure the secret contains all required keys.")
-#     except Exception as e:
-#         print(f"Error retrieving secret {SECRETNAME}: {e}")
-#         return None
-#
-# # Fetch the secret
-# get_secret()
-
+    try:
+        # Fetch the secret value
+        response = client.get_secret_value(SecretId=SECRET_NAME)
+        # Parse the secret as JSON
+        secret = json.loads(response["SecretString"])
+        return secret
+    except Exception as e:
+        print(f"Error retrieving secret {SECRET_NAME}: {e}")
+        return None
+# Fetch the secret
+user_secret = get_secret()
+if user_secret:
+    # Extract the secrets
+    try:
+        PASSWORD = user_secret["SecrPassword"] 
+        USER = user_secret["SecrUser"]        
+        ENDPOINT = user_secret["SecrEndpoint"] 
+        ACCESSID = user_secret["SecrAccessID"] 
+        ACCESSKEY = user_secret["SecrKey"] 
+        print("Successfully retrieved secrets from Secrets Manager.")
+    except KeyError as e:
+        print(f"Missing key in secret: {e}. Ensure the secret contains all required keys.")
+        PASSWORD, USER, ENDPOINT, ACCESSID, ACCESSKEY = None, None, None, None, None
+else:
+    print("Failed to retrieve the secret.")
+    PASSWORD, USER, ENDPOINT, ACCESSID, ACCESSKEY = None, None, None, None, None
 # Database connection function
 def connect():
     """Connect to the PostgreSQL database."""
-    # if not PASSWORD:
-    #     print("Missing database credentials. Cannot connect.")
-    #     return None
-
+    if not PASSWORD or not USER or not ENDPOINT or not ACCESSID or not ACCESSKEY:
+        print("Missing database credentials. Cannot connect.")
+        return None
     # SSL Certificate path
     dir_path = os.path.dirname(os.path.realpath(__file__))
     ssl = dir_path + "/etc/us-west-2-bundle.pem"
-
     try:
         # Establish the connection
         conn = psycopg2.connect(
@@ -93,15 +93,12 @@ def connect():
                   SUMMARY VARCHAR(255)
                 );
             """)
-
-        # conn.commit()
-
+        
         return conn
-
+        
     except psycopg2.Error as e:
         print(f"Error connecting to the database: {e}")
         return None
-
 
 """== Globals ============================================="""
 conn = connect()
@@ -184,14 +181,13 @@ def add_transcipt():
     except Exception as e:
         return jsonify({'error': str(e)})
 
-
 @app.route('/api/v1/summary', methods=['GET'])
 def get_summary():
     client = boto3.client(
             'bedrock-runtime',
             region_name='us-west-2',
-            aws_access_key_id='TODO',
-            aws_secret_access_key='TODO'
+            aws_access_key_id = ACCESSID,
+            aws_secret_access_key = ACCESSKEY
         )
 
     prompt = "Make a short bullet point summary of the conversation with personal data removed and then rate the scenario as either common or extreme"
@@ -266,5 +262,3 @@ if __name__ == '__main__':
     # init()
     # atexit.register(deinit) # this triggers on reload of flask
     app.run(host="0.0.0.0", port=5000) # debug=True)
-
-
