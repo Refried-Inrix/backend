@@ -69,22 +69,58 @@ def connect():
             sslmode="require"
         )
 
-        cursor = conn.cursor() #dictionary=True\    
-        print("Successfully connected to the database.")
-        #  cursor.execute("""
-        #      CREATE TABLE TRANSCRIPT (
-        #        DATE VARCHAR(255),
-        #        MESSAGE VARCHAR(255)
-        #      );
-        # """)
+        with conn.cursor() as cursor:
+            print("Successfully connected to the database.")
+
+            cursor.execute("""
+                DROP DATABASE TRANSCRIPT;
+            """)
+
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS TRANSCRIPT (
+                  INDEX SERIAL,
+                  DATE VARCHAR(63),
+                  MESSAGE VARCHAR(2047),
+                  AUTHOR VARCHAR(63),
+                  LOCATIONX REAL,
+                  LOCATIONY REAL
+                );
+            """)
+
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS PARSED (
+                  PRIORITY VARCHAR(31),
+                  SUMMARY VARCHAR(255)
+                );
+            """)
         
         return conn
+        
     except psycopg2.Error as e:
         print(f"Error connecting to the database: {e}")
         return None
 
+"""== Globals ============================================="""
 conn = connect()
+# threads = []
+# client = boto3.client('rds', region_name=REGION, aws_access_key_id=access_key_id, aws_secret_access_key=secret_access_key)
+# token = client.generate_db_auth_token(DBHostname=ENDPOINT, Port=PORT, DBUsername=USER, Region=REGION)
+"""========================================================"""
 
+# def worker(num):
+#     """thread worker function"""
+#     print(f'Worker: {num}')
+#
+# def init():
+#     """init the global state"""
+#     t = threading.Thread(target=worker, args=(1,))
+#     t.start()
+#     threads.append(t);
+#
+# def deinit():
+#     print("atexit")
+#     for t in threads:
+#         t.join()
 
 @app.route("/")
 def index():
@@ -92,10 +128,9 @@ def index():
 
 def __get_transcript():
     try:
-        cursor = conn.cursor()
-        cursor.execute('SELECT * FROM TRANSCRIPT')
-        transcript = cursor.fetchall()
-
+        with conn.cursor() as cursor:
+            cursor.execute('SELECT * FROM TRANSCRIPT')
+            transcript = cursor.fetchall()
 
         return transcript
 
@@ -123,8 +158,6 @@ def get_transcript():
 @app.route('/api/v1/transcript', methods=['POST', 'OPTIONS'])
 def add_transcipt():
     try:
-        cursor = conn.cursor()
-
         data = request.get_json()
         print("input data" + str(data))
 
@@ -133,26 +166,28 @@ def add_transcipt():
         author = data['author']
 
         locations = data['location']
-        if not locations:
-            cursor.execute('INSERT INTO TRANSCRIPT (DATE, MESSAGE, AUTHOR, LOCATIONX, LOCATIONY) VALUES (%s, %s, %s, %d, %d)', (date, msg, author, x, y))
-        else: 
-            x = locations['lat']
-            y = locations['lon']
-            cursor.execute('INSERT INTO TRANSCRIPT (DATE, MESSAGE, AUTHOR) VALUES (%s, %s, %s)', (date, msg, author))
-        conn.commit()
+
+        with conn.cursor() as cursor:
+            if not locations:
+                cursor.execute('INSERT INTO TRANSCRIPT (DATE, MESSAGE, AUTHOR, LOCATIONX, LOCATIONY) VALUES (%s, %s, %s, %d, %d)', (date, msg, author, x, y))
+            else: 
+                x = locations['lat']
+                y = locations['lon']
+                cursor.execute('INSERT INTO TRANSCRIPT (DATE, MESSAGE, AUTHOR) VALUES (%s, %s, %s)', (date, msg, author))
+
+        # conn.commit()
 
         return jsonify({'message': 'success'})
     except Exception as e:
         return jsonify({'error': str(e)})
-
 
 @app.route('/api/v1/summary', methods=['GET'])
 def get_summary():
     client = boto3.client(
             'bedrock-runtime',
             region_name='us-west-2',
-            aws_access_key_id= ACCESSID,
-            aws_secret_access_key= ACCESSKEY
+            aws_access_key_id = ACCESSID,
+            aws_secret_access_key = ACCESSKEY
         )
 
     prompt = "Make a short bullet point summary of the conversation with personal data removed and then rate the scenario as either common or extreme"
@@ -160,7 +195,7 @@ def get_summary():
 
     transcription = []
     transcript = __get_transcript()
-    print(transcript)
+    print("afaenf" + str(transcript))
     for i in transcript:
         transcription.append(i[1])
 
@@ -205,20 +240,23 @@ def get_summary():
 
     summary_lines = "\n".join(summary_lines)
 
+    print("1")
+
     #timestamp = datetime.now()
     #data = f"\nTimestamp: {timestamp}, Location: {Location}\n{summary_lines}\n\n"
     try:
         conn = connect()
-        cursor = conn.cursor()
-        cursor.execute('INSERT INTO PARSED (SUMMARY, PRIORITY) VALUES (%s , %s)', (summary_lines, rating)) # SQL Insert Command to db
-        conn.commit()
-        print('message: success')
+        print("2")
+        with conn.cursor() as cursor:
+            cursor.execute('INSERT INTO PARSED (SUMMARY, PRIORITY) VALUES (%s , %s)', (summary_lines, rating)) # SQL Insert Command to db
+        print("3")
 
+        #conn.commit()
+        print('message: success')
     except Exception as e:
         print('error: '+str(e))
 
-    finally:
-        cursor.close()
+    # cursor.close()
 
 if __name__ == '__main__':
     # init()
