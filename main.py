@@ -21,32 +21,11 @@ SECRETNAME = "DBAccess"
 ENDPOINT='database-1.cluster-cr20c6qq8ktf.us-west-2.rds.amazonaws.com'
 USER='refriedpostgres'
 
+TABLENAME="TRANSCRIPT3"
+
 # PASSWORD=None
 # ACCESSID=None
 # ACCESSKEY=None
-
-# # Function to get the secret from AWS Secrets Manager and fetch the secret
-# def getsecret():
-#     secrets = boto3.client("secretsmanager", region_name=REGION)
-#
-#     try:
-#         # Fetch the secret value
-#         response = secrets.get_secret_value(SecretId=SECRETNAME)
-#         # Parse the secret as JSON
-#         secret = json.loads(response["SecretString"])
-#
-#         # print("Successfully retrieved secrets from Secrets Manager.")
-#
-#         PASSWORD=secret["SecrPassword"]
-#         ACCESSID=secret["SecrAccessID"]
-#         ACCESSKEY=secret["SecrKey"]
-#
-#     except Exception as e:
-#         # except KeyError as e:
-#         #     print(f"Missing key in secret: {e}. Ensure the secret contains all required keys.")
-#         print(f"Error retrieving secret {SECRETNAME}: {e}")
-#
-# getsecret()
 
 # Function to get the secret from AWS Secrets Manager
 def get_secret():
@@ -103,6 +82,7 @@ def connect():
             sslmode="require"
         )
 
+
         cursor = conn.cursor()
         print("Successfully connected to the database.")
 
@@ -112,24 +92,25 @@ def connect():
         # conn.commit()
 
         # IF NOT EXISTS 
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS TRANSCRIPT (
-              INDEX SERIAL,
-              DATE VARCHAR(63),
-              MESSAGE VARCHAR(2047),
-              AUTHOR VARCHAR(63),
-              LOCATIONX REAL,
-              LOCATIONY REAL
-            );
-        """)
-        conn.commit()
+        # INDEX SERIAL,
 
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS PARSED (
-              PRIORITY VARCHAR(31),
-              SUMMARY VARCHAR(255)
-            );
-        """)
+        # cursor.execute(f"""
+        #     CREATE TABLE {TABLENAME} (
+        #       DATE VARCHAR(63),
+        #       MESSAGE VARCHAR(2047),
+        #       AUTHOR VARCHAR(63),
+        #       LOCATIONX REAL,
+        #       LOCATIONY REAL
+        #     );
+        # """)
+        # conn.commit()
+
+        # cursor.execute("""
+        #     CREATE TABLE IF NOT EXISTS PARSED (
+        #       PRIORITY VARCHAR(31),
+        #       SUMMARY VARCHAR(255)
+        #     );
+        # """)
         conn.commit()
         cursor.close()
 
@@ -140,85 +121,78 @@ def connect():
         return None
 
 """== Globals ============================================="""
-conn = connect()
 # threads = []
 # client = boto3.client('rds', region_name=REGION, aws_access_key_id=access_key_id, aws_secret_access_key=secret_access_key)
 # token = client.generate_db_auth_token(DBHostname=ENDPOINT, Port=PORT, DBUsername=USER, Region=REGION)
 """========================================================"""
 
-# def worker(num):
-#     """thread worker function"""
-#     print(f'Worker: {num}')
-#
-# def init():
-#     """init the global state"""
-#     t = threading.Thread(target=worker, args=(1,))
-#     t.start()
-#     threads.append(t);
-#
-# def deinit():
-#     print("atexit")
-#     for t in threads:
-#         t.join()
-
 @app.route("/")
 def index():
     return "<p>Use the /api endpoint</p>"
 
-def __get_transcript():
-    try:
-        cursor = conn.cursor()
-        cursor.execute('SELECT * FROM TRANSCRIPT;')
-        transcript = cursor.fetchall()
 
-        return transcript
+messages = []
+def addMessage(data):
+    # print(f"message from: {data.author}")
+    messages.append(data)
 
-        # return jsonify({
-        #     "index": transcript[0],
-        #     "date": transcript[1],
-        #     "message": transcript[2],
-        #     "author": transcript[3],
-        #     "location": {
-        #         "lat": transcript[4],
-        #         "lon": transcript[5]
-        #     }
-        # })
-
-    except Exception as e:
-        return {'error': str(e)}
+# def __get_transcript():
+#     try:
+#         cursor = conn.cursor()
+#         cursor.execute(f'SELECT * FROM {TABLENAME};')
+#         transcript = cursor.fetchall()
+#
+#         return transcript
+#
+#         # return jsonify({
+#         #     "index": transcript[0],
+#         #     "date": transcript[1],
+#         #     "message": transcript[2],
+#         #     "author": transcript[3],
+#         #     "location": {
+#         #         "lat": transcript[4],
+#         #         "lon": transcript[5]
+#         #     }
+#         # })
+#
+#     except Exception as e:
+#         return {'error': str(e)}
 
 # Read endpoint get all transcripts
 @app.route('/api/v1/transcript', methods=['GET'])
 def get_transcript():
-    trans = __get_transcript()
-    print(trans)
-    return jsonify(trans)
-
+    # trans = __get_transcript()
+    print(messages)
+    return jsonify(messages)
 
 # Write endpoint to add new transcript
 @app.route('/api/v1/transcript', methods=['POST', 'OPTIONS'])
 def add_transcipt():
+    # conn = connect()
     try:
         data = request.get_json()
-        print("input data" + str(data))
+        print("input data: " + str(data))
 
-        date = data['date']
-        msg = data['message']
-        author = data['author']
+        addMessage(data)
 
-        locations = data['location'] 
-
-        cursor = conn.cursor()
-
-        if not locations:
-            cursor.execute('INSERT INTO TRANSCRIPT (DATE, MESSAGE, AUTHOR, LOCATIONX, LOCATIONY) VALUES (%s, %s, %s, %d, %d);', (date, msg, author, x, y))
-        else:
-            x = locations['lat']
-            y = locations['lon']
-            cursor.execute('INSERT INTO TRANSCRIPT (DATE, MESSAGE, AUTHOR) VALUES (%s, %s, %s);', (date, msg, author))
-
-        conn.commit()
-        cursor.close()
+        # date = data['date']
+        # msg = data['message']
+        # author = data['author']
+        #
+        # locations = data['location']
+        # x = float(locations['lat'])
+        # y = float(locations['lon'])
+        #
+        # cursor = conn.cursor()
+        # if not locations:
+        #     cursor.execute(f'INSERT INTO {TABLENAME} (DATE, MESSAGE, AUTHOR) VALUES (%s, %s, %s);', (date, msg, author))
+        # else:
+        #     x = locations['lat']
+        #     y = locations['lon']
+        #     cursor.execute(f'INSERT INTO {TABLENAME} (DATE, MESSAGE, AUTHOR, LOCATIONX, LOCATIONY) VALUES (%s, %s, %s, %d, %d);', (date, msg, author, x, y))
+        #
+        # conn.commit()
+        # cursor.close()
 
         return jsonify({'message': 'success'})
     except Exception as e:
@@ -226,6 +200,7 @@ def add_transcipt():
 
 @app.route('/api/v1/summary', methods=['GET'])
 def get_summary(): # index
+    conn = connect()
     client = boto3.client(
             'bedrock-runtime',
             region_name=REGION,
@@ -303,8 +278,29 @@ def get_summary(): # index
 
     # cursor.close()
 
+    import boto3
+
+
+# TABLENAME="refried-thing-important-dont-forget"
+# dynamo = boto3.client('dynamodb', region_name=REGION)
+# dynamo.put_item(
+#     TableName=TABLENAME,
+#     Item={
+#         'pk': {'S': 'id#1'},
+#         'sk': {'S': 'cart#123'},
+#         'name': {'S': 'SomeName'},
+#         'inventory': {'N': '500'},
+#         # ... more attributes ...
+#     }
+# )
+
+# from OpenSSL import SSL
+# context = SSL.Context(SSL.PROTOCOL_TLSv1_2)
+# context.use_privatekey_file('server.key')
+# context.use_certificate_file('server.crt')
+
 if __name__ == '__main__':
     # init()
     # atexit.register(deinit) # this triggers on reload of flask
-    app.run(host="0.0.0.0", port=5000) # debug=True)
+    app.run(host="0.0.0.0", port=5000) # , ssl_context=context) # debug=True)
 
