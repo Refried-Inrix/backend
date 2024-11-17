@@ -48,5 +48,4 @@ def search():
         ]
     }
 
-    # Return results as JSON
     return jsonify(results)
