@@ -19,6 +19,11 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
+import logging
+
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
+
 # Constants
 PORT = 5432
 REGION = "us-west-2"
@@ -89,14 +94,31 @@ def post_transcipt():
     try:
         data = request.get_json()
 
+        try:
+            print("message from: " + str(data["author"]))
+        except Exception as e:
+            print(f"error: {e}")
+
         db.addMessage(data)
+
+        msgs = db.getMessages()
+        if (len(msgs) % 10 == 0):
+            db.cache()
 
         return jsonify({'message': 'success'})
     except Exception as e:
         return jsonify({'error': str(e)})
 
+
+# summary = ""
+# summarycachelen = -1
+
 @app.route('/api/v1/summary', methods=['GET'])
 def get_summary(): # index
+    # global summary
+    # if (len(summary) != 0):
+    #     return jsonify({'ok': summary})
+
     client = boto3.client(
             'bedrock-runtime',
             region_name=REGION,
@@ -109,12 +131,11 @@ def get_summary(): # index
 
     transcription = []
     transcript = db.getMessages()
-    print("afaenf: " + str(transcript))
-
 
     for i in transcript:
         transcription.append(i["message"])
 
+    print("transcription: " + str(transcription))
     # transcription.append(transcript[index][1])
 
     conversation = [ {
@@ -167,7 +188,12 @@ def get_summary(): # index
 
         print('message: success')
         print(summary_lines)
-        return jsonify({'ok': summary_lines})
+        summary = summary_lines
+        return jsonify({'ok': {
+            'summary': summary_lines,
+            'time': 0,
+            'author': 'name'
+        }})
     except Exception as e:
         print('error: '+ str(e))
         return jsonify({'error': str(e)})
@@ -194,6 +220,7 @@ def get_summary(): # index
 # context.use_certificate_file('server.crt')
 
 if __name__ == '__main__':
+    db.init()
     # init()
     # atexit.register(deinit) # this triggers on reload of flask
     app.run(host="0.0.0.0", port=5000) # , ssl_context=context) # debug=True)
