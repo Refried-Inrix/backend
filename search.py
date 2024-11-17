@@ -3,7 +3,9 @@
 import boto3
 from botocore.exceptions import ClientError
 from flask import Flask, request, jsonify, Response
-from main import db, app
+from main import db, app, get_secret
+
+user_secret = get_secret()
 
 @app.route('/search', methods=['GET'])
 def search():
@@ -12,8 +14,8 @@ def search():
     client = boto3.client(
             'bedrock-runtime',
             region_name='us-west-2',
-            aws_access_key_id="TODO",
-            aws_secret_access_key="TODO"
+            aws_access_key_id=user_secret["SecrKey"],
+            aws_secret_access_key=user_secret["SecrAccessID"]
             )
 
     prompt = {query}
